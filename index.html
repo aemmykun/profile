@@ -1,132 +1,1213 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Profile Stack — Neo Glass Cards</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap"
-      rel="stylesheet"
+    <title>Smart Photo Calendar (Offline, 1-file)</title>
+    <meta
+      name="description"
+      content="Offline smart calendar that groups your photos by date (EXIF when available) and renders them on a calendar."
     />
-    <link rel="stylesheet" href="./style.css" />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg0: #eef2ff;
+        --bg1: #f8fafc;
+        --ink: #0b1220;
+        --muted: rgba(11, 18, 32, 0.65);
+        --line: rgba(11, 18, 32, 0.12);
+        --card: rgba(255, 255, 255, 0.78);
+        --card2: rgba(255, 255, 255, 0.6);
+        --shadow: 0 22px 65px rgba(11, 18, 32, 0.22);
+        --accent: #2563eb;
+        --accent2: #10b981;
+        --radius: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
+          Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        color: var(--ink);
+        background: radial-gradient(circle at 20% 10%, rgba(37, 99, 235, 0.18), transparent 48%),
+          radial-gradient(circle at 80% 0%, rgba(16, 185, 129, 0.16), transparent 45%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
+        overflow: hidden;
+      }
+
+      .bg-grid {
+        position: fixed;
+        inset: 0;
+        background-image: linear-gradient(rgba(11, 18, 32, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(11, 18, 32, 0.05) 1px, transparent 1px);
+        background-size: 90px 90px;
+        mask-image: radial-gradient(circle at 50% 25%, rgba(0, 0, 0, 0.65), transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .app {
+        position: relative;
+        z-index: 1;
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(18px);
+      }
+
+      .title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 220px;
+      }
+
+      .title h1 {
+        font-size: 14px;
+        letter-spacing: 0.02em;
+        margin: 0;
+        font-weight: 700;
+      }
+
+      .title p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        border-radius: 999px;
+        box-shadow: 0 10px 28px rgba(11, 18, 32, 0.12);
+        padding: 8px 10px;
+      }
+
+      .btn {
+        appearance: none;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--ink);
+        padding: 9px 12px;
+        border-radius: 999px;
+        font-weight: 650;
+        font-size: 12px;
+        cursor: pointer;
+        transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+        user-select: none;
+      }
+
+      .btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(11, 18, 32, 0.22);
+      }
+
+      .btn.primary {
+        border-color: rgba(37, 99, 235, 0.35);
+        background: rgba(37, 99, 235, 0.12);
+        color: #0b1b44;
+      }
+
+      .btn.danger {
+        border-color: rgba(220, 38, 38, 0.25);
+        background: rgba(220, 38, 38, 0.08);
+      }
+
+      .seg {
+        display: inline-flex;
+        padding: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid var(--line);
+      }
+
+      .seg button {
+        border: none;
+        background: transparent;
+        padding: 7px 10px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 650;
+        color: rgba(11, 18, 32, 0.7);
+      }
+
+      .seg button[aria-pressed="true"] {
+        background: rgba(37, 99, 235, 0.14);
+        color: #0b1b44;
+      }
+
+      .content {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 14px;
+        padding: 14px;
+        overflow: hidden;
+      }
+
+      .panel {
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 12px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.5);
+      }
+
+      .panel-head .left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .month-title {
+        font-weight: 800;
+        font-size: 14px;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .subtle {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .calendar {
+        padding: 10px;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 8px;
+        min-height: 0;
+      }
+
+      .dow {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+        padding: 2px 2px 0;
+      }
+
+      .dow div {
+        text-align: left;
+        font-size: 11px;
+        font-weight: 750;
+        color: rgba(11, 18, 32, 0.58);
+        padding: 6px 8px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+        align-content: start;
+        overflow: auto;
+        padding: 2px;
+      }
+
+      /* Schedule uses the same container but 1 column */
+      #scheduleList {
+        grid-template-columns: 1fr;
+      }
+
+      .day {
+        position: relative;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(11, 18, 32, 0.08);
+        min-height: 92px;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        cursor: pointer;
+        transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+      }
+
+      .day:hover {
+        transform: translateY(-1px);
+        border-color: rgba(11, 18, 32, 0.18);
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .day.outside {
+        opacity: 0.55;
+      }
+
+      .day.selected {
+        outline: 2px solid rgba(37, 99, 235, 0.32);
+        outline-offset: 0px;
+      }
+
+      .daynum {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .badge {
+        font-size: 11px;
+        font-weight: 750;
+        color: rgba(11, 18, 32, 0.75);
+        background: rgba(37, 99, 235, 0.12);
+        border: 1px solid rgba(37, 99, 235, 0.18);
+        padding: 2px 7px;
+        border-radius: 999px;
+      }
+
+      .thumbs {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .thumbs img {
+        width: 26px;
+        height: 26px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid rgba(11, 18, 32, 0.14);
+        background: rgba(255, 255, 255, 0.55);
+      }
+
+      .hint {
+        padding: 12px;
+        border-top: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.5);
+      }
+
+      .hint p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      .side {
+        min-width: 0;
+      }
+
+      .side .panel-body {
+        padding: 12px;
+        overflow: auto;
+      }
+
+      .kpi {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .stat {
+        background: rgba(255, 255, 255, 0.65);
+        border: 1px solid rgba(11, 18, 32, 0.1);
+        border-radius: 14px;
+        padding: 10px;
+      }
+
+      .stat .label {
+        font-size: 11px;
+        font-weight: 750;
+        color: rgba(11, 18, 32, 0.6);
+      }
+
+      .stat .value {
+        font-size: 16px;
+        font-weight: 850;
+        margin-top: 2px;
+      }
+
+      .list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .daycard {
+        border-radius: 16px;
+        border: 1px solid rgba(11, 18, 32, 0.1);
+        background: rgba(255, 255, 255, 0.72);
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.12s ease, border-color 0.12s ease;
+      }
+
+      .daycard:hover {
+        transform: translateY(-1px);
+        border-color: rgba(11, 18, 32, 0.2);
+      }
+
+      .daycard .hero {
+        height: 88px;
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(16, 185, 129, 0.12));
+        position: relative;
+        overflow: hidden;
+      }
+
+      .daycard .hero img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .daycard .meta {
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .daycard .meta .date {
+        font-weight: 850;
+        font-size: 12px;
+      }
+
+      .daycard .meta .count {
+        font-size: 11px;
+        color: rgba(11, 18, 32, 0.7);
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.18);
+        padding: 2px 7px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+
+      dialog {
+        border: none;
+        border-radius: 18px;
+        padding: 0;
+        width: min(980px, calc(100vw - 28px));
+        max-width: 980px;
+        box-shadow: 0 40px 120px rgba(0, 0, 0, 0.35);
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(18px);
+      }
+
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.22);
+      }
+
+      .modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 12px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.65);
+      }
+
+      .modal-title {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .modal-body {
+        padding: 12px;
+      }
+
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 10px;
+      }
+
+      .photo {
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(11, 18, 32, 0.12);
+        background: rgba(255, 255, 255, 0.75);
+      }
+
+      .photo img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        display: block;
+      }
+
+      .photo .cap {
+        padding: 8px 9px;
+        font-size: 11px;
+        color: rgba(11, 18, 32, 0.75);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
+
+      @media (max-width: 980px) {
+        body {
+          overflow: auto;
+        }
+        .content {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media print {
+        header,
+        .side,
+        .hint,
+        dialog {
+          display: none !important;
+        }
+        body {
+          overflow: visible;
+          background: #fff;
+        }
+        .panel {
+          box-shadow: none;
+          border: 1px solid #ddd;
+        }
+        .grid {
+          overflow: visible;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div class="background-grid"></div>
-    <main class="profile-stage">
-      <header class="stage-header">
-        <div class="search-pill">
-          <span class="search-icon" aria-hidden="true">🔍</span>
-          <input type="text" value="Design" aria-label="ค้นหาข้อมูลโปรไฟล์" />
-          <button class="pill-close" aria-label="ล้างคำค้น">×</button>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="app">
+      <header>
+        <div class="title">
+          <h1>Smart Photo Calendar</h1>
+          <p>Upload photos → group by date (EXIF if available) → show on calendar.</p>
         </div>
-        <p>โปรไฟล์ใหม่แบบการ์ดซ้อน สไตล์ glass-morphism.</p>
+        <div class="controls">
+          <div class="pill">
+            <label class="btn primary" for="fileInput" title="Select photos from your device">
+              Upload photos
+            </label>
+            <input
+              id="fileInput"
+              class="sr-only"
+              type="file"
+              accept="image/*"
+              multiple
+            />
+            <button id="printBtn" class="btn" type="button" title="Print current month">
+              Print
+            </button>
+            <button id="clearBtn" class="btn danger" type="button" title="Remove loaded photos">
+              Clear
+            </button>
+          </div>
+          <div class="pill">
+            <button id="prevMonthBtn" class="btn" type="button" aria-label="Previous month">
+              ◀
+            </button>
+            <button id="todayBtn" class="btn" type="button">Today</button>
+            <button id="nextMonthBtn" class="btn" type="button" aria-label="Next month">
+              ▶
+            </button>
+          </div>
+          <div class="seg" role="group" aria-label="View toggle">
+            <button id="viewMonthBtn" type="button" aria-pressed="true">Month</button>
+            <button id="viewScheduleBtn" type="button" aria-pressed="false">Schedule</button>
+          </div>
+        </div>
       </header>
 
-      <section class="cards-stack" aria-live="polite">
-        <article class="profile-card active" data-card="about" tabindex="0">
-          <div class="card-header">
-            <span class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 32 32" role="presentation">
-                <path
-                  d="M8 6h16a2 2 0 0 1 2 2v16l-10-5-10 5V8a2 2 0 0 1 2-2Z"
-                />
-              </svg>
-            </span>
-            <p class="eyebrow">ข้อมูลหลัก</p>
-            <h2>About Me</h2>
+      <div class="content">
+        <section class="panel" aria-label="Calendar panel">
+          <div class="panel-head">
+            <div class="left">
+              <div>
+                <p id="monthTitle" class="month-title">—</p>
+                <div id="monthSubtitle" class="subtle">—</div>
+              </div>
+            </div>
+            <div class="subtle" id="statusText">No photos loaded.</div>
           </div>
-          <p class="card-lede">
-            นักออกแบบระบบประสบการณ์ดิจิทัล ผสมผสาน motion + data เพื่อสร้าง
-            product ที่ลื่นไหลและน่าใช้
-          </p>
-          <div class="card-content">
-            <ul>
-              <li>Base: กรุงเทพฯ / Remote</li>
-              <li>สายงาน: Product & Interaction Designer</li>
-              <li>ถนัด: 3D motion, design system, rapid prototyping</li>
-            </ul>
-          </div>
-        </article>
 
-        <article class="profile-card" data-card="experience" tabindex="0">
-          <div class="card-header">
-            <span class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 32 32" role="presentation">
-                <path
-                  d="M5 10h22v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10Zm6-4h10a2 2 0 0 1 2 2v2H9V8a2 2 0 0 1 2-2Z"
-                />
-              </svg>
-            </span>
-            <p class="eyebrow">ประสบการณ์</p>
-            <h2>Experience</h2>
+          <div class="calendar" id="calendarView">
+            <div class="dow" aria-hidden="true">
+              <div>Mon</div>
+              <div>Tue</div>
+              <div>Wed</div>
+              <div>Thu</div>
+              <div>Fri</div>
+              <div>Sat</div>
+              <div>Sun</div>
+            </div>
+            <div class="grid" id="calendarGrid" role="grid" aria-label="Month calendar"></div>
           </div>
-          <p class="card-lede">
-            7+ ปี ร่วมงานกับฟินเทค / สุขภาพ / การท่องเที่ยว
-          </p>
-          <div class="card-content">
-            <ul>
-              <li>Revolut — Lead Product Designer</li>
-              <li>Line Man — Motion Interaction</li>
-              <li>SCB 10X — Venture Design Partner</li>
-            </ul>
-            <p class="meta">Q1 2025: เปิดรับโปรเจ็กต์ collaboration</p>
-          </div>
-        </article>
 
-        <article class="profile-card" data-card="projects" tabindex="0">
-          <div class="card-header">
-            <span class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 32 32" role="presentation">
-                <path
-                  d="m16 3 3.6 7.7L28 12.2l-6 5.9 1.4 8.3L16 22.6l-7.4 3.8L10 18.1 4 12.2l8.4-1 3.6-8.2Z"
-                />
-              </svg>
-            </span>
-            <p class="eyebrow">ผลงาน</p>
-            <h2>Signature Projects</h2>
+          <div class="calendar" id="scheduleView" hidden>
+            <div class="grid" id="scheduleList" aria-label="Schedule list"></div>
           </div>
-          <p class="card-lede">
-            เลือกผลงาน motion-first ที่ช่วยปิดจุด gap ระหว่าง brand และ product
-          </p>
-          <div class="card-content">
-            <ul>
-              <li>OrbitOS — dashboard 3D navigation</li>
-              <li>Paywave XR — fintech onboarding AR</li>
-              <li>Atom Bank — immersive savings flow</li>
-            </ul>
-            <button class="ghost-btn">ดูเคสเต็ม</button>
-          </div>
-        </article>
 
-        <article class="profile-card" data-card="contact" tabindex="0">
-          <div class="card-header">
-            <span class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 32 32" role="presentation">
-                <path
-                  d="M5 7h22v18H5V7Zm4 5 7 4 7-4"
-                />
-              </svg>
-            </span>
-            <p class="eyebrow">ติดต่อ</p>
-            <h2>Contact & Availability</h2>
+          <div class="hint">
+            <p>
+              Tip: Works offline. Dates come from <b>EXIF DateTimeOriginal</b> when available;
+              otherwise it uses the file’s modified date.
+            </p>
           </div>
-          <p class="card-lede">
-            พร้อมช่วยแบรนด์ที่อยากทดลองรูปแบบการเล่าเรื่องใหม่ ๆ
-          </p>
-          <div class="card-content">
-            <ul>
-              <li>Mail: hello@orbitlab.studio</li>
-              <li>Signal: @orbitlab</li>
-              <li>Calendly: orbitlab.design/coffee</li>
-            </ul>
-            <p class="meta">ตอบกลับภายใน 24 ชม.</p>
-          </div>
-        </article>
-      </section>
-    </main>
+        </section>
 
-    <script src="./script.js" type="module"></script>
+        <aside class="panel side" aria-label="Summary panel">
+          <div class="panel-head">
+            <div class="left">
+              <p class="month-title" style="margin: 0">Summary</p>
+            </div>
+            <div class="subtle" id="sourceNote">Local only</div>
+          </div>
+          <div class="panel-body">
+            <div class="kpi">
+              <div class="stat">
+                <div class="label">Photos loaded</div>
+                <div class="value" id="kpiPhotos">0</div>
+              </div>
+              <div class="stat">
+                <div class="label">Days with photos</div>
+                <div class="value" id="kpiDays">0</div>
+              </div>
+            </div>
+
+            <div class="subtle" style="margin: 4px 0 8px">
+              Days (click to open gallery)
+            </div>
+            <div class="list" id="daysList"></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <dialog id="dayDialog" aria-label="Day photo gallery">
+      <div class="modal-head">
+        <p id="dayDialogTitle" class="modal-title">—</p>
+        <div style="display: flex; gap: 8px; align-items: center">
+          <span id="dayDialogMeta" class="subtle"></span>
+          <button id="closeDialogBtn" class="btn" type="button">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="dayGallery" class="gallery"></div>
+      </div>
+    </dialog>
+
+    <script>
+      /**
+       * Smart Photo Calendar (offline, no dependencies)
+       * - Reads EXIF DateTimeOriginal / DateTimeDigitized / DateTime from JPEG APP1
+       * - Falls back to File.lastModified
+       * - Renders Month + Schedule views and a per-day gallery
+       */
+
+      const $ = (sel) => document.querySelector(sel);
+
+      const fileInput = $("#fileInput");
+      const printBtn = $("#printBtn");
+      const clearBtn = $("#clearBtn");
+      const prevMonthBtn = $("#prevMonthBtn");
+      const nextMonthBtn = $("#nextMonthBtn");
+      const todayBtn = $("#todayBtn");
+      const viewMonthBtn = $("#viewMonthBtn");
+      const viewScheduleBtn = $("#viewScheduleBtn");
+
+      const monthTitle = $("#monthTitle");
+      const monthSubtitle = $("#monthSubtitle");
+      const statusText = $("#statusText");
+      const calendarGrid = $("#calendarGrid");
+      const calendarView = $("#calendarView");
+      const scheduleView = $("#scheduleView");
+      const scheduleList = $("#scheduleList");
+      const daysList = $("#daysList");
+      const kpiPhotos = $("#kpiPhotos");
+      const kpiDays = $("#kpiDays");
+
+      const dayDialog = $("#dayDialog");
+      const dayDialogTitle = $("#dayDialogTitle");
+      const dayDialogMeta = $("#dayDialogMeta");
+      const closeDialogBtn = $("#closeDialogBtn");
+      const dayGallery = $("#dayGallery");
+
+      /** @type {{file: File, url: string, date: Date, dayKey: string, timeKey: string, size: number, name: string}[]} */
+      let photos = [];
+      /** @type {Map<string, {key: string, date: Date, photos: any[]}>} */
+      let byDay = new Map();
+      let selectedDayKey = null;
+
+      const pad2 = (n) => String(n).padStart(2, "0");
+
+      const dayKeyOf = (d) =>
+        `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+      const timeKeyOf = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+
+      const parseExifDateString = (s) => {
+        // EXIF: "YYYY:MM:DD HH:MM:SS"
+        const m = /^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/.exec(s.trim());
+        if (!m) return null;
+        const [_, Y, M, D, h, mi, se] = m;
+        const dt = new Date(Number(Y), Number(M) - 1, Number(D), Number(h), Number(mi), Number(se));
+        return Number.isFinite(dt.getTime()) ? dt : null;
+      };
+
+      const readAscii = (view, offset, len) => {
+        let out = "";
+        for (let i = 0; i < len; i++) out += String.fromCharCode(view.getUint8(offset + i));
+        return out;
+      };
+
+      const readAsciiNullTerminated = (view, offset, maxLen) => {
+        let out = "";
+        for (let i = 0; i < maxLen; i++) {
+          const b = view.getUint8(offset + i);
+          if (b === 0) break;
+          out += String.fromCharCode(b);
+        }
+        return out;
+      };
+
+      const getExifDateFromJpeg = (buffer) => {
+        // Minimal JPEG APP1 EXIF parser
+        const view = new DataView(buffer);
+        if (view.byteLength < 4) return null;
+        if (view.getUint16(0, false) !== 0xffd8) return null; // SOI
+
+        let offset = 2;
+        while (offset + 4 <= view.byteLength) {
+          if (view.getUint8(offset) !== 0xff) break;
+          const marker = view.getUint16(offset, false);
+          offset += 2;
+          if (marker === 0xffd9 || marker === 0xffda) break; // EOI / SOS
+          const size = view.getUint16(offset, false);
+          offset += 2;
+          if (size < 2 || offset + size - 2 > view.byteLength) break;
+
+          if (marker === 0xffe1) {
+            // APP1
+            const header = readAscii(view, offset, Math.min(6, size - 2));
+            if (header === "Exif\u0000\u0000") {
+              const tiffOffset = offset + 6;
+              return parseTiffExif(view, tiffOffset);
+            }
+          }
+          offset += size - 2;
+        }
+        return null;
+      };
+
+      const parseTiffExif = (view, tiffOffset) => {
+        if (tiffOffset + 8 > view.byteLength) return null;
+        const endian = readAscii(view, tiffOffset, 2);
+        const little = endian === "II";
+        if (!(little || endian === "MM")) return null;
+        const magic = view.getUint16(tiffOffset + 2, little);
+        if (magic !== 42) return null;
+        const ifd0Offset = view.getUint32(tiffOffset + 4, little);
+        const ifd0 = tiffOffset + ifd0Offset;
+        const exifPtr = findIfdTagValue(view, tiffOffset, ifd0, little, 0x8769); // ExifIFDPointer
+
+        // Try DateTimeOriginal/DateTimeDigitized in EXIF IFD
+        if (typeof exifPtr === "number") {
+          const exifIfd = tiffOffset + exifPtr;
+          const dto = readIfdAsciiTag(view, tiffOffset, exifIfd, little, 0x9003); // DateTimeOriginal
+          if (dto) return parseExifDateString(dto);
+          const dtd = readIfdAsciiTag(view, tiffOffset, exifIfd, little, 0x9004); // DateTimeDigitized
+          if (dtd) return parseExifDateString(dtd);
+        }
+
+        // Fallback DateTime in IFD0
+        const dt = readIfdAsciiTag(view, tiffOffset, ifd0, little, 0x0132);
+        if (dt) return parseExifDateString(dt);
+
+        return null;
+      };
+
+      const findIfdTagValue = (view, tiffBase, ifdOffset, little, tagId) => {
+        if (ifdOffset + 2 > view.byteLength) return null;
+        const count = view.getUint16(ifdOffset, little);
+        const entriesOffset = ifdOffset + 2;
+        for (let i = 0; i < count; i++) {
+          const entry = entriesOffset + i * 12;
+          if (entry + 12 > view.byteLength) break;
+          const tag = view.getUint16(entry, little);
+          const type = view.getUint16(entry + 2, little);
+          const num = view.getUint32(entry + 4, little);
+          const valueOrOffset = view.getUint32(entry + 8, little);
+          if (tag !== tagId) continue;
+          // For pointer tags, it's typically LONG (4 bytes), num=1, value is offset
+          if (type === 4 && num === 1) return valueOrOffset;
+          return valueOrOffset;
+        }
+        return null;
+      };
+
+      const readIfdAsciiTag = (view, tiffBase, ifdOffset, little, tagId) => {
+        if (ifdOffset + 2 > view.byteLength) return null;
+        const count = view.getUint16(ifdOffset, little);
+        const entriesOffset = ifdOffset + 2;
+        for (let i = 0; i < count; i++) {
+          const entry = entriesOffset + i * 12;
+          if (entry + 12 > view.byteLength) break;
+          const tag = view.getUint16(entry, little);
+          if (tag !== tagId) continue;
+          const type = view.getUint16(entry + 2, little);
+          const num = view.getUint32(entry + 4, little);
+          const valueOrOffset = view.getUint32(entry + 8, little);
+          if (type !== 2 || num <= 0) return null; // ASCII
+          const byteLen = num;
+          let strOffset;
+          if (byteLen <= 4) {
+            // value is stored inline in the 4-byte value field
+            strOffset = entry + 8;
+          } else {
+            strOffset = tiffBase + valueOrOffset;
+          }
+          if (strOffset < 0 || strOffset >= view.byteLength) return null;
+          const s = readAsciiNullTerminated(view, strOffset, Math.min(byteLen, 64));
+          return s || null;
+        }
+        return null;
+      };
+
+      const setView = (mode) => {
+        const isMonth = mode === "month";
+        viewMonthBtn.setAttribute("aria-pressed", isMonth ? "true" : "false");
+        viewScheduleBtn.setAttribute("aria-pressed", isMonth ? "false" : "true");
+        calendarView.hidden = !isMonth;
+        scheduleView.hidden = isMonth;
+        render();
+      };
+
+      const setSelectedDay = (dayKey) => {
+        selectedDayKey = dayKey;
+        renderCalendar(); // re-highlight
+      };
+
+      const openDay = (dayKey) => {
+        const day = byDay.get(dayKey);
+        if (!day) return;
+        setSelectedDay(dayKey);
+        dayDialogTitle.textContent = formatDayTitle(day.date);
+        dayDialogMeta.textContent = `${day.photos.length} photo${day.photos.length === 1 ? "" : "s"}`;
+        dayGallery.innerHTML = "";
+        for (const p of day.photos) {
+          const card = document.createElement("div");
+          card.className = "photo";
+          const img = document.createElement("img");
+          img.loading = "lazy";
+          img.decoding = "async";
+          img.src = p.url;
+          img.alt = p.name;
+          const cap = document.createElement("div");
+          cap.className = "cap";
+          cap.textContent = `${p.timeKey} — ${p.name}`;
+          card.appendChild(img);
+          card.appendChild(cap);
+          dayGallery.appendChild(card);
+        }
+        dayDialog.showModal();
+      };
+
+      const closeDay = () => {
+        if (dayDialog.open) dayDialog.close();
+      };
+
+      const formatMonthTitle = (date) => {
+        const fmt = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" });
+        return fmt.format(date);
+      };
+
+      const formatDayTitle = (date) => {
+        const fmt = new Intl.DateTimeFormat(undefined, {
+          weekday: "long",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+        return fmt.format(date);
+      };
+
+      const normalizeToLocalMidnight = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+      let currentMonth = (() => {
+        try {
+          const raw = localStorage.getItem("spc.currentMonth");
+          if (raw) {
+            const d = new Date(raw);
+            if (Number.isFinite(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1);
+          }
+        } catch (_) {}
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), 1);
+      })();
+
+      const saveCurrentMonth = () => {
+        try {
+          localStorage.setItem("spc.currentMonth", currentMonth.toISOString());
+        } catch (_) {}
+      };
+
+      const bestHero = (arr) => {
+        // Pick largest file (usually best quality) as hero
+        if (!arr || arr.length === 0) return null;
+        return arr.reduce((a, b) => (b.size > a.size ? b : a), arr[0]);
+      };
+
+      const rebuildIndex = () => {
+        byDay = new Map();
+        for (const p of photos) {
+          const k = p.dayKey;
+          const existing = byDay.get(k);
+          if (existing) existing.photos.push(p);
+          else byDay.set(k, { key: k, date: normalizeToLocalMidnight(p.date), photos: [p] });
+        }
+        for (const v of byDay.values()) {
+          v.photos.sort((a, b) => a.date - b.date);
+        }
+      };
+
+      const clearAll = () => {
+        for (const p of photos) URL.revokeObjectURL(p.url);
+        photos = [];
+        byDay = new Map();
+        selectedDayKey = null;
+        render();
+      };
+
+      const handleFiles = async (fileList) => {
+        const incoming = Array.from(fileList || []);
+        if (incoming.length === 0) return;
+
+        statusText.textContent = "Reading dates…";
+
+        const newItems = [];
+        for (const file of incoming) {
+          if (!file || !file.type || !file.type.startsWith("image/")) continue;
+          const url = URL.createObjectURL(file);
+          let date = null;
+          try {
+            const buffer = await file.arrayBuffer();
+            date = getExifDateFromJpeg(buffer);
+          } catch (_) {
+            // ignore
+          }
+          if (!date) date = new Date(file.lastModified || Date.now());
+          const item = {
+            file,
+            url,
+            date,
+            dayKey: dayKeyOf(date),
+            timeKey: timeKeyOf(date),
+            size: file.size || 0,
+            name: file.name || "photo",
+          };
+          newItems.push(item);
+        }
+
+        photos = photos.concat(newItems).sort((a, b) => a.date - b.date);
+        rebuildIndex();
+
+        // Jump to month of newest loaded photos (usually what user expects)
+        const last = photos[photos.length - 1];
+        if (last) {
+          currentMonth = new Date(last.date.getFullYear(), last.date.getMonth(), 1);
+          saveCurrentMonth();
+        }
+
+        render();
+        // Allow selecting the same file set again
+        try {
+          fileInput.value = "";
+        } catch (_) {}
+      };
+
+      const render = () => {
+        kpiPhotos.textContent = String(photos.length);
+        kpiDays.textContent = String(byDay.size);
+        statusText.textContent =
+          photos.length === 0 ? "No photos loaded." : `${photos.length} photos loaded (local only).`;
+
+        monthTitle.textContent = formatMonthTitle(currentMonth);
+        const rng = new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" });
+        const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const end = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+        monthSubtitle.textContent = `${rng.format(start)} – ${rng.format(end)}`;
+
+        renderCalendar();
+        renderSidebar();
+        renderSchedule();
+      };
+
+      const renderCalendar = () => {
+        calendarGrid.innerHTML = "";
+
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const first = new Date(year, month, 1);
+        // Make Monday=0..Sunday=6
+        const jsDay = first.getDay(); // 0=Sun
+        const mondayIndex = (jsDay + 6) % 7;
+        const gridStart = new Date(year, month, 1 - mondayIndex);
+
+        const todayKey = dayKeyOf(new Date());
+
+        for (let i = 0; i < 42; i++) {
+          const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+          const key = dayKeyOf(d);
+          const cell = document.createElement("div");
+          cell.className = "day";
+          cell.setAttribute("role", "gridcell");
+          if (d.getMonth() !== month) cell.classList.add("outside");
+          if (key === selectedDayKey) cell.classList.add("selected");
+
+          const header = document.createElement("div");
+          header.className = "daynum";
+          const left = document.createElement("div");
+          left.textContent = String(d.getDate());
+          const right = document.createElement("div");
+
+          const day = byDay.get(key);
+          if (day && day.photos.length) {
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.textContent = `${day.photos.length}`;
+            right.appendChild(badge);
+          } else if (key === todayKey) {
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.style.background = "rgba(16, 185, 129, 0.12)";
+            badge.style.borderColor = "rgba(16, 185, 129, 0.18)";
+            badge.textContent = "Today";
+            right.appendChild(badge);
+          }
+
+          header.appendChild(left);
+          header.appendChild(right);
+          cell.appendChild(header);
+
+          const thumbs = document.createElement("div");
+          thumbs.className = "thumbs";
+          if (day && day.photos.length) {
+            for (const p of day.photos.slice(0, 6)) {
+              const img = document.createElement("img");
+              img.loading = "lazy";
+              img.decoding = "async";
+              img.src = p.url;
+              img.alt = p.name;
+              thumbs.appendChild(img);
+            }
+          }
+          cell.appendChild(thumbs);
+
+          cell.addEventListener("click", () => {
+            if (byDay.has(key)) openDay(key);
+            else setSelectedDay(key);
+          });
+          cell.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              if (byDay.has(key)) openDay(key);
+              else setSelectedDay(key);
+            }
+          });
+          cell.tabIndex = 0;
+          calendarGrid.appendChild(cell);
+        }
+      };
+
+      const renderSidebar = () => {
+        daysList.innerHTML = "";
+        const keys = Array.from(byDay.keys()).sort();
+        if (keys.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "subtle";
+          empty.textContent = "Upload photos to see days here.";
+          daysList.appendChild(empty);
+          return;
+        }
+
+        for (const k of keys.slice().reverse().slice(0, 60)) {
+          const day = byDay.get(k);
+          if (!day) continue;
+          const hero = bestHero(day.photos);
+          const card = document.createElement("div");
+          card.className = "daycard";
+
+          const heroEl = document.createElement("div");
+          heroEl.className = "hero";
+          if (hero) {
+            const img = document.createElement("img");
+            img.loading = "lazy";
+            img.decoding = "async";
+            img.src = hero.url;
+            img.alt = hero.name;
+            heroEl.appendChild(img);
+          }
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          const dateEl = document.createElement("div");
+          dateEl.className = "date";
+          dateEl.textContent = formatDayTitle(day.date);
+          const countEl = document.createElement("div");
+          countEl.className = "count";
+          countEl.textContent = `${day.photos.length} photo${day.photos.length === 1 ? "" : "s"}`;
+          meta.appendChild(dateEl);
+          meta.appendChild(countEl);
+
+          card.appendChild(heroEl);
+          card.appendChild(meta);
+          card.addEventListener("click", () => openDay(k));
+          daysList.appendChild(card);
+        }
+      };
+
+      const renderSchedule = () => {
+        scheduleList.innerHTML = "";
+        const month = currentMonth.getMonth();
+        const year = currentMonth.getFullYear();
+        const start = new Date(year, month, 1);
+        const end = new Date(year, month + 1, 1);
+        const days = [];
+        for (const [k, v] of byDay.entries()) {
+          if (v.date >= start && v.date < end) days.push(v);
+        }
+        days.sort((a, b) => a.date - b.date);
+
+        if (days.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "subtle";
+          empty.style.padding = "10px";
+          empty.textContent = "No photos for this month.";
+          scheduleList.appendChild(empty);
+          return;
+        }
+
+        for (const d of days) {
+          const card = document.createElement("div");
+          card.className = "daycard";
+          const hero = bestHero(d.photos);
+          const heroEl = document.createElement("div");
+          heroEl.className = "hero";
+          if (hero) {
+            const img = document.createElement("img");
+            img.loading = "lazy";
+            img.decoding = "async";
+            img.src = hero.url;
+            img.alt = hero.name;
+            heroEl.appendChild(img);
+          }
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          const dateEl = document.createElement("div");
+          dateEl.className = "date";
+          dateEl.textContent = formatDayTitle(d.date);
+          const countEl = document.createElement("div");
+          countEl.className = "count";
+          countEl.textContent = `${d.photos.length} photo${d.photos.length === 1 ? "" : "s"}`;
+          meta.appendChild(dateEl);
+          meta.appendChild(countEl);
+          card.appendChild(heroEl);
+          card.appendChild(meta);
+          card.addEventListener("click", () => openDay(d.key));
+          scheduleList.appendChild(card);
+        }
+      };
+
+      // Events
+      fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
+      clearBtn.addEventListener("click", () => clearAll());
+      printBtn.addEventListener("click", () => window.print());
+      prevMonthBtn.addEventListener("click", () => {
+        currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+        saveCurrentMonth();
+        render();
+      });
+      nextMonthBtn.addEventListener("click", () => {
+        currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+        saveCurrentMonth();
+        render();
+      });
+      todayBtn.addEventListener("click", () => {
+        const now = new Date();
+        currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        saveCurrentMonth();
+        render();
+      });
+      viewMonthBtn.addEventListener("click", () => setView("month"));
+      viewScheduleBtn.addEventListener("click", () => setView("schedule"));
+      closeDialogBtn.addEventListener("click", closeDay);
+      dayDialog.addEventListener("click", (e) => {
+        // close when clicking outside the panel
+        const rect = dayDialog.getBoundingClientRect();
+        const inside =
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom;
+        if (!inside) closeDay();
+      });
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeDay();
+      });
+
+      // Initial render
+      render();
+    </script>
   </body>
 </html>
